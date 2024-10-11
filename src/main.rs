@@ -1,49 +1,35 @@
-use core::time;
-use rodio::source::{SineWave, Source};
-use rodio::{dynamic_mixer, OutputStream, Sink};
-use std::time::Duration;
+use cpal::{
+    self,
+    traits::{DeviceTrait, HostTrait, StreamTrait},
+    OutputCallbackInfo, Sample,
+};
 
 fn main() {
-    // Construct a dynamic controller and mixer, stream_handle, and sink.
-    let (controller, mixer) = dynamic_mixer::mixer::<f32>(2, 44_100);
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    let sink = Sink::try_new(&stream_handle).unwrap();
+    let host = cpal::default_host();
+    let output_device = host.default_output_device().expect("No output device");
 
-    // Create four unique sources. The frequencies used here correspond
-    // notes in the key of C and in octave 4: C4, or middle C on a piano,
-    // E4, G4, and A4 respectively.
-    let source_c = SineWave::new(261.63)
-        .take_duration(Duration::from_secs_f32(1.))
-        .amplify(0.20)
-        .repeat_infinite();
+    let stream_config = cpal::StreamConfig {
+        channels: 2,
+        sample_rate: cpal::SampleRate(44100),
+        buffer_size: cpal::BufferSize::Default,
+    };
 
-    let source_e = SineWave::new(329.63)
-        .take_duration(Duration::from_secs_f32(1.))
-        .amplify(0.20)
-        .repeat_infinite();
+    let process = move |data: &mut [f32], _: &OutputCallbackInfo| {
+        for sample in data.iter_mut() {
+            *sample = Sample::EQUILIBRIUM;
+        }
+    };
 
-    let source_g = SineWave::new(392.0)
-        .take_duration(Duration::from_secs_f32(1.))
-        .amplify(0.20)
-        .repeat_infinite();
+    let stream = output_device
+        .build_output_stream(
+            &stream_config,
+            process,
+            |err| eprintln!("An error occured in the output stream {}", err),
+            None,
+        )
+        .expect("Could not build output stream");
 
-    let source_a = SineWave::new(440.0)
-        .take_duration(Duration::from_secs_f32(1.))
-        .amplify(0.20)
-        .repeat_infinite();
+    stream.play().expect("Could not play stream!");
 
-    // Add sources C, E, G, and A to the mixer controller.
-    controller.add(source_c);
-    controller.add(source_e);
-    controller.add(source_g);
-    controller.add(source_a);
-
-    // Append the dynamic mixer to the sink to play a C major 6th chord.
-    sink.append(mixer);
-
-    // Sleep the thread until sink is empty.
-
-    loop {
-        sink.play();
-    }
+    std::thread::sleep(std::time::Duration::from_secs(3));
 }
