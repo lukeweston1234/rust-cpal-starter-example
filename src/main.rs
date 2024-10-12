@@ -51,8 +51,10 @@ fn main() {
 
     let sample_format = stream_config.sample_format();
 
-    let drums = load_wav("assets/test_drums.wav").expect("Could not load drums!");
-    let synth = load_wav("assets/test_synth.wav").expect("Could not load synth!");
+    let drums = load_wav("assets/drums_32.wav").expect("Could not load drums!");
+    let synth = load_wav("assets/synth_32.wav").expect("Could not load synth!");
+
+    // let weird_techno = load_wav("assets/weird_techno_32.wav").expect("couldnt load test");
 
     println!("Samples loaded!");
 
@@ -61,7 +63,7 @@ fn main() {
         .into_iter()
         .zip_longest(synth.samples.iter())
         .map(|pair| match pair {
-            EitherOrBoth::Both(a, b) => a + b,
+            EitherOrBoth::Both(a, b) => (a + b),
             EitherOrBoth::Left(a) => a,
             EitherOrBoth::Right(b) => *b,
         })
@@ -72,6 +74,8 @@ fn main() {
         sample_rate: drums.sample_rate,
         position: 0,
     };
+
+    // let summed_handle = Arc::new(Mutex::new(Some(weird_techno)));
 
     let summed_handle = Arc::new(Mutex::new(Some(summed_source)));
 
@@ -100,8 +104,7 @@ where
                             .cloned()
                             .unwrap_or(0.0);
 
-                        // Convert the f32 sample to the output sample type T
-                        *sample = cpal::Sample::from_sample(s * 5.0);
+                        *sample = cpal::Sample::from_sample(s);
 
                         audio_sample.position += 1;
                     }
