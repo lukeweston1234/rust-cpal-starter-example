@@ -1,10 +1,8 @@
 use cpal::{
     self,
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    FromSample, Sample, SampleFormat, SizedSample,
+    FromSample, SampleFormat, SizedSample,
 };
-use i24::i24;
-use itertools::{EitherOrBoth, Itertools};
 use std::{
     env,
     sync::{Arc, Mutex},
@@ -58,19 +56,24 @@ fn main() {
 
     println!("Samples loaded!");
 
-    let summed: Vec<f32> = drums
-        .samples
-        .into_iter()
-        .zip_longest(synth.samples.iter())
-        .map(|pair| match pair {
-            EitherOrBoth::Both(a, b) => (a + b),
-            EitherOrBoth::Left(a) => a,
-            EitherOrBoth::Right(b) => *b,
-        })
-        .collect();
+    fn sum_sample_array_items(samples: Vec<Vec<f32>>) -> Vec<f32> {
+        let max_length = samples.iter().map(|x| x.len()).max().unwrap_or(0);
+        let mut empty_buffer = vec![0.0; max_length];
+        for i in 0..max_length - 1 {
+            for sample in &samples {
+                match sample.get(i) {
+                    Some(value) => empty_buffer[i] += value,
+                    None => (),
+                }
+            }
+        }
+        empty_buffer
+    }
+
+    let summed_array = sum_sample_array_items(vec![drums.samples, synth.samples]);
 
     let summed_source = AudioSample {
-        samples: summed,
+        samples: summed_array,
         sample_rate: drums.sample_rate,
         position: 0,
     };
