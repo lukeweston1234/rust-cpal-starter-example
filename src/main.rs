@@ -1,20 +1,7 @@
 use audio_sample::{load_wav, sum_audio_clips, AudioSample};
-use cpal::{
-    self,
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-    FromSample, SampleFormat, SizedSample,
-};
-use ringbuf::{
-    storage::Heap,
-    traits::{Consumer, Producer, Split},
-    wrap::caching::Caching,
-    HeapRb, SharedRb,
-};
-use std::{
-    env, error,
-    sync::{Arc, Mutex},
-};
-use stream::{get_input_stream, get_output_stream, RingBufConsumer};
+use cpal::{self, traits::StreamTrait};
+use std::sync::{Arc, Mutex};
+use stream::{get_input_stream, get_output_stream};
 
 mod audio_sample;
 mod stream;

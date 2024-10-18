@@ -1,7 +1,6 @@
 use cpal::{
     self,
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-    FromSample, SampleFormat, SizedSample,
+    traits::{DeviceTrait, HostTrait},
 };
 use ringbuf::{
     storage::Heap,
@@ -9,10 +8,7 @@ use ringbuf::{
     wrap::caching::Caching,
     HeapRb, SharedRb,
 };
-use std::{
-    env, error,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
 use crate::SummedAudioHandle;
 
@@ -26,7 +22,7 @@ pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer) {
         .expect("Could not get default input config");
     println!("{} input channels!", input_config.channels());
     let ring = HeapRb::<f32>::new(1024);
-    let (mut producer, mut consumer) = ring.split();
+    let (mut producer, consumer) = ring.split();
     for _ in 0..1024 {
         producer.try_push(0.0).unwrap();
     }
