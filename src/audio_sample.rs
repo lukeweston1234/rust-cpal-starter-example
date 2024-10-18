@@ -20,6 +20,9 @@ impl AudioSample {
     pub fn increment_position(&mut self) {
         self.position += 1;
     }
+    pub fn get_samples(&self) -> &Vec<f32> {
+        return &self.samples;
+    }
 }
 
 pub fn load_wav(file_path: &str) -> Result<AudioSample, hound::Error> {
