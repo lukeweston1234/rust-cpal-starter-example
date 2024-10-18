@@ -13,6 +13,9 @@ use std::{
     env, error,
     sync::{Arc, Mutex},
 };
+use stream::{get_input_stream, RingBufConsumer};
+
+mod stream;
 
 fn load_wav(file_path: &str) -> Result<AudioSample, hound::Error> {
     println!("{:?}", env::current_dir());
@@ -36,9 +39,6 @@ fn load_wav(file_path: &str) -> Result<AudioSample, hound::Error> {
         position: 0,
     })
 }
-
-type RingBufConsumer = Caching<Arc<SharedRb<Heap<f32>>>, false, true>;
-
 struct AudioSample {
     samples: Vec<f32>,
     sample_rate: u32,
@@ -54,14 +54,6 @@ fn main() {
     let output_stream_config = output_device
         .default_output_config()
         .expect("Could not get default output config");
-
-    let input_device = host.default_input_device().expect("No input device");
-
-    let input_config = input_device
-        .default_input_config()
-        .expect("Could not get default input config");
-
-    println!("{} input channels!", input_config.channels());
 
     let sample_format = output_stream_config.sample_format();
 
@@ -98,33 +90,7 @@ fn main() {
 
     let summed_handle = Arc::new(Mutex::new(Some(summed_source)));
 
-    let ring = HeapRb::<f32>::new(1024);
-    let (mut producer, mut consumer) = ring.split();
-
-    for _ in 0..1024 {
-        producer.try_push(0.0).unwrap();
-    }
-
-    let input_data_fn = move |data: &[f32], _: &cpal::InputCallbackInfo| {
-        let mut output_fell_behind = false;
-        for &sample in data {
-            if producer.try_push(sample).is_err() {
-                output_fell_behind = true;
-            }
-        }
-        if output_fell_behind {
-            eprintln!("output stream fell behind: try increasing latency");
-        }
-    };
-
-    let input_stream = input_device
-        .build_input_stream(
-            &input_config.into(),
-            input_data_fn,
-            |err| eprint!("Error occured in input stream {}", err),
-            None,
-        )
-        .expect("Could not create input stream");
+    let (input_stream, consumer) = get_input_stream();
 
     let _ = input_stream.play();
 
