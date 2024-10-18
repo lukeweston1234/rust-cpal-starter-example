@@ -77,14 +77,13 @@ pub fn get_output_stream(
                         };
 
                         let memory_sample = audio_sample
-                            .samples
-                            .get(audio_sample.position)
+                            .get(audio_sample.get_position())
                             .cloned()
                             .unwrap_or(0.0);
 
                         *sample = cpal::Sample::from_sample(memory_sample + input_buf_sample);
 
-                        audio_sample.position += 1;
+                        audio_sample.increment_position();
                     }
                 }
             }
