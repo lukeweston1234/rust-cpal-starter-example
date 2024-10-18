@@ -13,7 +13,7 @@ use std::{
     env, error,
     sync::{Arc, Mutex},
 };
-use stream::{get_input_stream, RingBufConsumer};
+use stream::{get_input_stream, get_output_stream, RingBufConsumer};
 
 mod stream;
 
@@ -48,19 +48,8 @@ struct AudioSample {
 type SummedAudioHandle = Arc<Mutex<Option<AudioSample>>>;
 
 fn main() {
-    let host = cpal::default_host();
-    let output_device = host.default_output_device().expect("No output device");
-
-    let output_stream_config = output_device
-        .default_output_config()
-        .expect("Could not get default output config");
-
-    let sample_format = output_stream_config.sample_format();
-
     let drums = load_wav("assets/drums_32.wav").expect("Could not load drums!");
     let synth = load_wav("assets/synth_32.wav").expect("Could not load synth!");
-
-    // let weird_techno = load_wav("assets/weird_techno_32.wav").expect("couldnt load test");
 
     println!("Samples loaded!");
 
@@ -86,84 +75,15 @@ fn main() {
         position: 0,
     };
 
-    // let summed_handle = Arc::new(Mutex::new(Some(weird_techno)));
-
     let summed_handle = Arc::new(Mutex::new(Some(summed_source)));
 
     let (input_stream, consumer) = get_input_stream();
 
     let _ = input_stream.play();
 
-    match sample_format {
-        SampleFormat::F32 => run::<f32>(
-            &output_device,
-            &output_stream_config.into(),
-            summed_handle,
-            consumer,
-        ),
-        SampleFormat::I16 => run::<i16>(
-            &output_device,
-            &output_stream_config.into(),
-            summed_handle,
-            consumer,
-        ),
-        SampleFormat::U16 => run::<u16>(
-            &output_device,
-            &output_stream_config.into(),
-            summed_handle,
-            consumer,
-        ),
-        _ => panic!("Unsupported sample format!"),
-    }
-}
+    let output = get_output_stream(summed_handle, consumer);
 
-fn run<T>(
-    device: &cpal::Device,
-    config: &cpal::StreamConfig,
-    summed_handle: SummedAudioHandle,
-    mut consumer: RingBufConsumer,
-) where
-    T: cpal::Sample + SizedSample + FromSample<f32>,
-{
-    let channels = config.channels as usize;
-
-    // Move consumer into the closure
-    let process = move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
-        if let Ok(mut guard) = summed_handle.try_lock() {
-            if let Some(audio_sample) = guard.as_mut() {
-                for frame in data.chunks_mut(channels) {
-                    for sample in frame.iter_mut() {
-                        // Directly use consumer here
-                        let input_buf_sample = match consumer.try_pop() {
-                            Some(s) => s,
-                            None => 0.0,
-                        };
-
-                        let memory_sample = audio_sample
-                            .samples
-                            .get(audio_sample.position)
-                            .cloned()
-                            .unwrap_or(0.0);
-
-                        *sample = cpal::Sample::from_sample(memory_sample + input_buf_sample);
-
-                        audio_sample.position += 1;
-                    }
-                }
-            }
-        }
-    };
-
-    let stream = device
-        .build_output_stream(
-            config,
-            process,
-            |err| eprintln!("An error occurred in the output stream: {}", err),
-            None,
-        )
-        .expect("Could not build output stream");
-
-    stream.play().expect("Could not play stream!");
+    let _ = output.play();
 
     std::thread::sleep(std::time::Duration::from_secs(10));
 }
