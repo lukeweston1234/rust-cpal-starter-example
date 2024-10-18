@@ -5,6 +5,7 @@ use stream::{get_input_stream, get_output_stream};
 
 mod audio_sample;
 mod mixer;
+mod player;
 mod stream;
 
 type SummedAudioHandle = Arc<Mutex<Option<AudioSample>>>;
