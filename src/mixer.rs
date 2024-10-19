@@ -3,48 +3,60 @@ use std::sync::{atomic::AtomicBool, Arc, Mutex};
 use crate::audio_sample::AudioSample;
 
 pub struct MixerController {
-    audio_store: Vec<AudioSample>,
+    audio_store: Mutex<Vec<AudioSample>>,
     has_prepared_audio: AtomicBool,
-    prepared_audio: Vec<f32>,
+    prepared_audio: Mutex<Vec<f32>>,
+    is_looping: AtomicBool,
 }
 impl MixerController {
     pub fn new() -> Self {
         Self {
-            audio_store: Vec::new(),
+            audio_store: Mutex::new(Vec::new()),
             has_prepared_audio: AtomicBool::new(false),
-            prepared_audio: Vec::new(),
+            prepared_audio: Mutex::new(Vec::new()),
+            is_looping: AtomicBool::new(true),
         }
     }
-    pub fn add_audio_sample(&mut self, audio_sample: AudioSample) {
-        self.audio_store.push(audio_sample);
+    pub fn add_audio_sample(&self, audio_sample: AudioSample) {
+        self.audio_store.lock().unwrap().push(audio_sample);
         self.sum_audio_store();
     }
     pub fn remove_audio_sample(&mut self, index: usize) {
-        self.audio_store.remove(index);
+        self.audio_store.lock().unwrap().remove(index);
         self.sum_audio_store();
     }
-    pub fn sum_audio_store(&mut self) {
+    pub fn sum_audio_store(&self) {
         let max_length = self
             .audio_store
+            .lock()
+            .unwrap()
             .iter()
             .map(|x| x.get_samples().len())
             .max()
             .unwrap_or(0);
-        let mut new_audio_buffer = vec![0.0; max_length];
+        let mut prepared_audio = self.prepared_audio.lock().unwrap();
+        prepared_audio.resize(max_length, 0.0);
         for i in 0..max_length - 1 {
-            for sample in &self.audio_store {
+            for sample in self.audio_store.lock().unwrap().iter() {
                 match sample.get_samples().get(i) {
-                    Some(value) => new_audio_buffer[i] += value,
+                    Some(value) => prepared_audio[i] += value,
                     None => (),
                 }
             }
         }
-        self.prepared_audio = new_audio_buffer;
         self.has_prepared_audio
             .store(true, std::sync::atomic::Ordering::Relaxed);
     }
-    pub fn get_prepared_audio(&self) -> &Vec<f32> {
-        &self.prepared_audio
+    pub fn get_prepared_audio(&self) -> Vec<f32> {
+        self.prepared_audio.lock().unwrap().to_vec()
+    }
+    pub fn set_prepared_false(&self) {
+        self.has_prepared_audio
+            .store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+    pub fn set_is_looping(&self, new_val: bool) {
+        self.is_looping
+            .store(new_val, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -52,15 +64,13 @@ pub struct Mixer {
     audio_buffer: Vec<f32>,
     controller: Arc<MixerController>,
     position: usize,
-    is_looping: bool,
 }
 impl Mixer {
-    pub fn new(controller: Arc<MixerController>, is_looping: bool) -> Self {
+    pub fn new(controller: Arc<MixerController>) -> Self {
         Self {
             audio_buffer: Vec::new(),
             controller: controller,
             position: 0,
-            is_looping,
         }
     }
 }
@@ -73,9 +83,14 @@ impl Iterator for Mixer {
             .load(std::sync::atomic::Ordering::Relaxed)
         {
             self.audio_buffer = self.controller.get_prepared_audio().to_vec(); // TODO: How bad is this approach?
+            self.controller.set_prepared_false();
         }
         if self.position > self.audio_buffer.len() {
-            if self.is_looping {
+            if self
+                .controller
+                .is_looping
+                .load(std::sync::atomic::Ordering::Relaxed)
+            {
                 self.position = 0;
             } else {
                 return None;
@@ -87,9 +102,9 @@ impl Iterator for Mixer {
     }
 }
 
-pub fn mixer() -> (Mixer, Arc<MixerController>) {
+pub fn mixer() -> (Arc<MixerController>, Mixer) {
     let controller = Arc::new(MixerController::new());
-    let mixer = Mixer::new(controller.clone(), false);
+    let mixer = Mixer::new(controller.clone());
 
-    return (mixer, controller);
+    (controller, mixer)
 }

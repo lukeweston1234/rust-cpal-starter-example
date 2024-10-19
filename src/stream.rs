@@ -10,7 +10,7 @@ use ringbuf::{
 };
 use std::sync::Arc;
 
-use crate::SummedAudioHandle;
+use crate::mixer::{mixer, MixerController};
 
 pub type RingBufConsumer = Caching<Arc<SharedRb<Heap<f32>>>, false, true>;
 
@@ -48,10 +48,7 @@ pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer) {
     (input_stream, consumer)
 }
 
-pub fn get_output_stream(
-    summed_handle: SummedAudioHandle,
-    mut consumer: RingBufConsumer,
-) -> cpal::Stream {
+pub fn get_output_stream(mut consumer: RingBufConsumer) -> (cpal::Stream, Arc<MixerController>) {
     let host = cpal::default_host();
     let output_device = host.default_output_device().expect("No output device");
 
@@ -61,29 +58,18 @@ pub fn get_output_stream(
 
     let channels = output_stream_config.channels();
 
+    let (controller, mut mixer) = mixer();
+
     let process = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        if let Ok(mut guard) = summed_handle.try_lock() {
-            if let Some(audio_sample) = guard.as_mut() {
-                for frame in data.chunks_mut(channels.into()) {
-                    for sample in frame.iter_mut() {
-                        // Directly use consumer here
-                        let input_buf_sample = match consumer.try_pop() {
-                            Some(s) => s,
-                            None => 0.0,
-                        };
-
-                        let memory_sample = audio_sample
-                            .get(audio_sample.get_position())
-                            .cloned()
-                            .unwrap_or(0.0);
-
-                        *sample = cpal::Sample::from_sample(memory_sample + input_buf_sample);
-
-                        audio_sample.increment_position();
-                    }
-                }
+        data.chunks_mut(channels.into()).for_each(|frame| {
+            for sample in frame.iter_mut() {
+                let consumer_sample = match consumer.try_pop() {
+                    Some(s) => s,
+                    None => 0.0,
+                };
+                *sample = mixer.next().unwrap_or(0f32) + consumer_sample;
             }
-        }
+        })
     };
 
     let output_stream = output_device
@@ -95,5 +81,5 @@ pub fn get_output_stream(
         )
         .expect("Could not build output stream!");
 
-    output_stream
+    (output_stream, controller)
 }

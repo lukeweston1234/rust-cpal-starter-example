@@ -8,25 +8,23 @@ mod mixer;
 mod player;
 mod stream;
 
-type SummedAudioHandle = Arc<Mutex<Option<AudioSample>>>;
-
 fn main() {
     let drums = load_wav("assets/drums_32.wav").expect("Could not load drums!");
     let synth = load_wav("assets/synth_32.wav").expect("Could not load synth!");
 
     println!("Samples loaded!");
 
-    let summed_source = sum_audio_clips(vec![drums, synth]);
-
-    let summed_handle = Arc::new(Mutex::new(Some(summed_source)));
-
     let (input_stream, consumer) = get_input_stream();
 
     let _ = input_stream.play();
 
-    let output = get_output_stream(summed_handle, consumer);
+    let (output_stream, controller) = get_output_stream(consumer);
 
-    let _ = output.play();
+    controller.set_is_looping(false);
 
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    controller.add_audio_sample(drums);
+
+    let _ = output_stream.play();
+
+    loop {}
 }
