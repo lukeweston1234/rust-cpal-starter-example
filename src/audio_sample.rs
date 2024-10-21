@@ -3,7 +3,7 @@ pub struct AudioSample {
     sample_rate: u32,
 }
 impl AudioSample {
-    pub fn new(samples: Vec<f32>, sample_rate: u32, position: usize) -> Self {
+    pub fn new(samples: Vec<f32>, sample_rate: u32) -> Self {
         Self {
             samples,
             sample_rate,
