@@ -14,8 +14,9 @@ impl AudioSample {
         bpm: u32,
         beats_per_measure: u32,
         bars: u32,
+        channel_count: u32,
     ) -> AudioSample {
-        let sample_time = sample_rate * 60 / bpm * beats_per_measure * bars;
+        let sample_time = sample_rate * 60 / bpm * beats_per_measure * bars * channel_count;
         println!("{}", sample_time);
         Self {
             samples: vec![0.0; sample_time as usize],

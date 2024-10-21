@@ -1,4 +1,4 @@
-use audio_sample::load_wav;
+use audio_sample::{load_wav, AudioSample};
 use cpal::{self, traits::StreamTrait};
 use player::{player, run_player};
 use stream::{get_input_stream, get_output_stream};
@@ -6,10 +6,11 @@ use stream::{get_input_stream, get_output_stream};
 mod audio_sample;
 mod mixer;
 mod player;
+mod recorder;
 mod stream;
 
 fn main() {
-    let drums = load_wav("assets/drums_32.wav").expect("Could not load drums!");
+    // let drums = load_wav("assets/drums_32.wav").expect("Could not load drums!");
     // let synth = load_wav("assets/synth_32.wav").expect("Could not load synth!");
 
     println!("Samples loaded!");
@@ -18,7 +19,9 @@ fn main() {
 
     let (output_stream, mixer_controller) = get_output_stream(consumer);
 
-    mixer_controller.add_audio_sample(drums);
+    let zero_vector = AudioSample::zero_buffer(44_100, 120, 4, 4, 2);
+
+    mixer_controller.add_audio_sample(zero_vector);
 
     let _ = output_stream.play();
 
@@ -28,23 +31,7 @@ fn main() {
 
     run_player(player);
 
-    player_controller.play();
-
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    player_controller.pause();
-
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    player_controller.play();
-
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    player_controller.stop();
-
-    std::thread::sleep(std::time::Duration::from_secs(1));
-
-    player_controller.play();
+    player_controller.record();
 
     loop {}
 }

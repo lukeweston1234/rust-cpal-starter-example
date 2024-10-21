@@ -12,9 +12,9 @@ use std::sync::Arc;
 
 use crate::mixer::{mixer, MixerController};
 
-pub type RingBufConsumer = Caching<Arc<SharedRb<Heap<f32>>>, false, true>;
+pub type RingBufConsumer<T> = Caching<Arc<SharedRb<Heap<T>>>, false, true>;
 
-pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer) {
+pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer<f32>) {
     let host = cpal::default_host();
     let input_device = host.default_input_device().expect("No input device");
     let input_config = input_device
@@ -48,7 +48,9 @@ pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer) {
     (input_stream, consumer)
 }
 
-pub fn get_output_stream(mut consumer: RingBufConsumer) -> (cpal::Stream, Arc<MixerController>) {
+pub fn get_output_stream(
+    mut consumer: RingBufConsumer<f32>,
+) -> (cpal::Stream, Arc<MixerController>) {
     let host = cpal::default_host();
     let output_device = host.default_output_device().expect("No output device");
 
