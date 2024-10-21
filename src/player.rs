@@ -1,6 +1,9 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
+use crate::mixer::{Mixer, MixerController, MixerState};
+
+#[derive(Debug)]
 pub enum PlayerMessage {
     Play,
     Pause,
@@ -18,6 +21,7 @@ impl PlayerController {
         Self { sender }
     }
     pub fn play(&self) {
+        println!("In play!");
         let _ = self.sender.send(PlayerMessage::Play);
     }
     pub fn pause(&self) {
@@ -38,40 +42,57 @@ impl PlayerController {
 }
 
 pub struct Player {
-    receiver: Receiver<PlayerMessage>,
+    controller_receiver: Receiver<PlayerMessage>,
+    mixer_controller: Arc<MixerController>,
 }
 impl Player {
-    pub fn new(receiver: Receiver<PlayerMessage>) -> Self {
-        Self { receiver }
+    pub fn new(
+        controller_receiver: Receiver<PlayerMessage>,
+        mixer_controller: Arc<MixerController>,
+    ) -> Self {
+        Self {
+            controller_receiver,
+            mixer_controller,
+        }
     }
-    pub fn play(&self) {}
+    pub fn play(&self) {
+        self.mixer_controller
+            .set_mixer_state(MixerState::PlayingLooping);
+    }
 
-    pub fn pause(&self) {}
+    pub fn pause(&self) {
+        self.mixer_controller.set_mixer_state(MixerState::Paused);
+    }
 
-    pub fn stop(&self) {}
+    pub fn stop(&self) {
+        self.mixer_controller.set_mixer_state(MixerState::Stopped);
+    }
 
     pub fn record(&self) {}
 
     pub fn stop_record(&self) {}
 }
 
-pub fn player() -> (Player, Arc<PlayerController>) {
+pub fn player(mixer_controller: Arc<MixerController>) -> (Player, Arc<PlayerController>) {
     let (sender, receiver) = channel::<PlayerMessage>();
-    let controller = Arc::new(PlayerController::new(sender));
-    let player = Player::new(receiver);
+    let player_controller = Arc::new(PlayerController::new(sender));
+    let player = Player::new(receiver, mixer_controller);
 
-    (player, controller)
+    (player, player_controller)
 }
 
 pub fn run_player(player: Player) {
-    for msg in &player.receiver {
-        match msg {
-            PlayerMessage::Play => player.play(),
-            PlayerMessage::Pause => player.pause(),
-            PlayerMessage::Stop => player.stop(),
-            PlayerMessage::Record => player.record(),
-            PlayerMessage::StopRecord => player.stop_record(),
-            PlayerMessage::Exit => break,
+    std::thread::spawn(move || loop {
+        match player.controller_receiver.recv() {
+            Ok(message) => match message {
+                PlayerMessage::Play => player.play(),
+                PlayerMessage::Pause => player.pause(),
+                PlayerMessage::Stop => player.stop(),
+                PlayerMessage::Record => player.record(),
+                PlayerMessage::StopRecord => player.stop_record(),
+                PlayerMessage::Exit => break,
+            },
+            Err(_) => break,
         }
-    }
+    });
 }

@@ -58,7 +58,7 @@ pub fn get_output_stream(mut consumer: RingBufConsumer) -> (cpal::Stream, Arc<Mi
 
     let channels = output_stream_config.channels();
 
-    let (controller, mut mixer) = mixer();
+    let (mixer_controller, mut mixer) = mixer();
 
     let process = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         data.chunks_mut(channels.into()).for_each(|frame| {
@@ -81,5 +81,5 @@ pub fn get_output_stream(mut consumer: RingBufConsumer) -> (cpal::Stream, Arc<Mi
         )
         .expect("Could not build output stream!");
 
-    (output_stream, controller)
+    (output_stream, mixer_controller)
 }
