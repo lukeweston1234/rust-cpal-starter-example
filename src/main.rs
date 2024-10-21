@@ -30,5 +30,21 @@ fn main() {
 
     player_controller.play();
 
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    player_controller.pause();
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    player_controller.play();
+
+    std::thread::sleep(std::time::Duration::from_secs(3));
+
+    player_controller.stop();
+
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
+    player_controller.play();
+
     loop {}
 }
