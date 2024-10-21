@@ -9,6 +9,19 @@ impl AudioSample {
             sample_rate,
         }
     }
+    pub fn zero_buffer(
+        sample_rate: u32,
+        bpm: u32,
+        beats_per_measure: u32,
+        bars: u32,
+    ) -> AudioSample {
+        let sample_time = sample_rate * 60 / bpm * beats_per_measure * bars;
+        println!("{}", sample_time);
+        Self {
+            samples: vec![0.0; sample_time as usize],
+            sample_rate: sample_rate,
+        }
+    }
     pub fn get(&self, position: usize) -> Option<&f32> {
         return self.samples.get(position);
     }
