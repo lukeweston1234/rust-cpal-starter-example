@@ -1,6 +1,5 @@
-use audio_sample::{load_wav, sum_audio_clips, AudioSample};
+use audio_sample::load_wav;
 use cpal::{self, traits::StreamTrait};
-use std::sync::{Arc, Mutex};
 use stream::{get_input_stream, get_output_stream};
 
 mod audio_sample;
