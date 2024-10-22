@@ -2,6 +2,7 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
 use crate::mixer::{Mixer, MixerController, MixerState};
+use crate::recorder::RecorderController;
 
 #[derive(Debug)]
 pub enum PlayerMessage {
@@ -44,15 +45,18 @@ impl PlayerController {
 pub struct Player {
     controller_receiver: Receiver<PlayerMessage>,
     mixer_controller: Arc<MixerController>,
+    recorder_controller: Arc<RecorderController>,
 }
 impl Player {
     pub fn new(
         controller_receiver: Receiver<PlayerMessage>,
         mixer_controller: Arc<MixerController>,
+        recorder_controller: Arc<RecorderController>,
     ) -> Self {
         Self {
             controller_receiver,
             mixer_controller,
+            recorder_controller,
         }
     }
     pub fn play(&self) {
@@ -68,15 +72,22 @@ impl Player {
         self.mixer_controller.set_mixer_state(MixerState::Stopped);
     }
 
-    pub fn record(&self) {}
+    pub fn record(&self) {
+        self.recorder_controller.start_recording();
+    }
 
-    pub fn stop_record(&self) {}
+    pub fn stop_record(&self) {
+        self.recorder_controller.stop_recording();
+    }
 }
 
-pub fn player(mixer_controller: Arc<MixerController>) -> (Player, Arc<PlayerController>) {
+pub fn player(
+    mixer_controller: Arc<MixerController>,
+    recorder_controller: Arc<RecorderController>,
+) -> (Player, Arc<PlayerController>) {
     let (sender, receiver) = channel::<PlayerMessage>();
     let player_controller = Arc::new(PlayerController::new(sender));
-    let player = Player::new(receiver, mixer_controller);
+    let player = Player::new(receiver, mixer_controller, recorder_controller);
 
     (player, player_controller)
 }

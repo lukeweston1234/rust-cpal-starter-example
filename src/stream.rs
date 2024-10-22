@@ -14,22 +14,31 @@ use crate::mixer::{mixer, MixerController};
 
 pub type RingBufConsumer<T> = Caching<Arc<SharedRb<Heap<T>>>, false, true>;
 
-pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer<f32>) {
+pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer<f32>, RingBufConsumer<f32>) {
     let host = cpal::default_host();
     let input_device = host.default_input_device().expect("No input device");
     let input_config = input_device
         .default_input_config()
         .expect("Could not get default input config");
     println!("{} input channels!", input_config.channels());
-    let ring = HeapRb::<f32>::new(1024);
-    let (mut producer, consumer) = ring.split();
+
+    let feedback_ring = HeapRb::<f32>::new(1024);
+    let (mut feedback_producer, feedback_consumer) = feedback_ring.split();
     for _ in 0..1024 {
-        producer.try_push(0.0).unwrap();
+        feedback_producer.try_push(0.0).unwrap();
+    }
+    let ring_recording = HeapRb::<f32>::new(1024);
+    let (mut producer_recording, consumer_recording) = ring_recording.split();
+    for _ in 0..1024 {
+        producer_recording.try_push(0.0).unwrap();
     }
     let input_data_fn = move |data: &[f32], _: &cpal::InputCallbackInfo| {
         let mut output_fell_behind = false;
         for &sample in data {
-            if producer.try_push(sample).is_err() {
+            if feedback_producer.try_push(sample).is_err() {
+                output_fell_behind = true;
+            }
+            if producer_recording.try_push(sample).is_err() {
                 output_fell_behind = true;
             }
         }
@@ -45,7 +54,7 @@ pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer<f32>) {
             None,
         )
         .expect("Could not create input stream");
-    (input_stream, consumer)
+    (input_stream, feedback_consumer, consumer_recording)
 }
 
 pub fn get_output_stream(
