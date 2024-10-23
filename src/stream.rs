@@ -22,12 +22,23 @@ pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer<f32>, RingBufConsume
         .expect("Could not get default input config");
     println!("{} input channels!", input_config.channels());
 
-    let feedback_ring = HeapRb::<f32>::new(1024);
+    let sample_rate = input_config.sample_rate();
+
+    println!("{}", sample_rate.0);
+
+    println!("{}", input_config.channels());
+
+    let latency_frames = (150.0 / 1_000.0) * sample_rate.0 as f32;
+    let latency_samples = latency_frames as usize * 2 as usize;
+
+    println!("{}", latency_samples);
+
+    let feedback_ring = HeapRb::<f32>::new(latency_samples * 2);
     let (mut feedback_producer, feedback_consumer) = feedback_ring.split();
     for _ in 0..1024 {
         feedback_producer.try_push(0.0).unwrap();
     }
-    let ring_recording = HeapRb::<f32>::new(1024);
+    let ring_recording = HeapRb::<f32>::new(latency_samples * 2);
     let (mut producer_recording, consumer_recording) = ring_recording.split();
     for _ in 0..1024 {
         producer_recording.try_push(0.0).unwrap();

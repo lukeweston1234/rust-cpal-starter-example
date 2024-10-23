@@ -22,17 +22,17 @@ fn main() {
 
     let zero_vector = AudioSample::zero_buffer(44_100, 120, 4, 4, 2);
 
-    // mixer_controller.add_audio_sample(zero_vector);
+    mixer_controller.add_audio_sample(zero_vector);
 
-    mixer_controller.add_audio_sample(drums);
+    // mixer_controller.add_audio_sample(drums);
 
     let recorder_mixer = mixer_controller.clone();
 
     let (recorder, recorder_controller) = recorder(recording_consumer, recorder_mixer);
 
-    let _ = output_stream.play();
+    output_stream.play().expect("Could not play output");
 
-    let _ = input_stream.play();
+    input_stream.play().expect("Could not play input");
 
     let (player, player_controller) = player(mixer_controller, recorder_controller);
 
