@@ -37,6 +37,7 @@ impl MixerController {
         self.sum_audio_store();
     }
     pub fn sum_audio_store(&self) {
+        println!("Summing audio!");
         let max_length = self
             .audio_store
             .lock()
@@ -47,8 +48,9 @@ impl MixerController {
             .unwrap_or(0);
         let mut prepared_audio = self.prepared_audio.lock().unwrap();
         prepared_audio.resize(max_length, 0.0);
+        let audio_store = self.audio_store.lock().unwrap();
         for i in 0..max_length - 1 {
-            for sample in self.audio_store.lock().unwrap().iter() {
+            for sample in audio_store.iter() {
                 match sample.get_samples().get(i) {
                     Some(value) => prepared_audio[i] += value,
                     None => (),

@@ -9,6 +9,8 @@ pub enum PlayerMessage {
     Play,
     Pause,
     Stop,
+    IncrementTotalClips,
+    DecrementTotalClips,
     Record,
     StopRecord,
     Exit,
@@ -40,12 +42,20 @@ impl PlayerController {
     pub fn exit(&self) {
         let _ = self.sender.send(PlayerMessage::Exit);
     }
+    pub fn on_clip_add(&self) {
+        let _ = self.sender.send(PlayerMessage::IncrementTotalClips);
+    }
+    pub fn on_clip_remove(&self) {
+        let _ = self.sender.send(PlayerMessage::DecrementTotalClips);
+    }
 }
 
 pub struct Player {
     controller_receiver: Receiver<PlayerMessage>,
     mixer_controller: Arc<MixerController>,
     recorder_controller: Arc<RecorderController>,
+    total_clips: usize,
+    maximum_clips: usize,
 }
 impl Player {
     pub fn new(
@@ -57,6 +67,8 @@ impl Player {
             controller_receiver,
             mixer_controller,
             recorder_controller,
+            total_clips: 0,
+            maximum_clips: 8,
         }
     }
     pub fn play(&self) {
@@ -79,6 +91,16 @@ impl Player {
     pub fn stop_record(&self) {
         self.recorder_controller.stop_recording();
     }
+    pub fn increment_total_clips(&mut self) {
+        if self.total_clips >= self.maximum_clips {
+            self.stop_record();
+            return;
+        }
+        self.total_clips += 1;
+    }
+    pub fn decrement_total_clips(&mut self) {
+        self.total_clips -= 1;
+    }
 }
 
 pub fn player(
@@ -92,15 +114,17 @@ pub fn player(
     (player, player_controller)
 }
 
-pub fn run_player(player: Player) {
+pub fn run_player(mut player: Player) {
     std::thread::spawn(move || loop {
-        match player.controller_receiver.recv() {
+        match player.controller_receiver.try_recv() {
             Ok(message) => match message {
                 PlayerMessage::Play => player.play(),
                 PlayerMessage::Pause => player.pause(),
                 PlayerMessage::Stop => player.stop(),
                 PlayerMessage::Record => player.record(),
                 PlayerMessage::StopRecord => player.stop_record(),
+                PlayerMessage::IncrementTotalClips => player.increment_total_clips(),
+                PlayerMessage::DecrementTotalClips => player.decrement_total_clips(),
                 PlayerMessage::Exit => break,
             },
             Err(_) => break,

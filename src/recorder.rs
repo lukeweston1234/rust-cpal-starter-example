@@ -1,9 +1,15 @@
 use crate::audio_sample::AudioSample;
 use crate::mixer::{Mixer, MixerController};
+use crate::player::PlayerController;
 use crate::stream::RingBufConsumer;
 use ringbuf::traits::Consumer;
 use std::sync::atomic::AtomicBool;
+use std::sync::mpsc::{self, channel, Receiver};
 use std::sync::Arc;
+
+pub enum RecorderMessage {
+    ClipAdded,
+}
 
 pub struct RecorderController {
     is_recording: AtomicBool,
@@ -29,6 +35,8 @@ pub struct Recorder {
     recorder_controller: Arc<RecorderController>,
     mixer_controller: Arc<MixerController>,
     current_recording_clip: Option<Vec<f32>>,
+    position: usize,
+    buffer_size: usize,
 }
 impl Recorder {
     pub fn new(
@@ -41,11 +49,13 @@ impl Recorder {
             recorder_controller,
             mixer_controller,
             current_recording_clip: None,
+            position: 0,
+            buffer_size: (44_100 * 4 * 2), // 60 bpm 4 bars at 44100hz 2 channels
         }
     }
 }
 
-pub fn run_recorder(mut recorder: Recorder) {
+pub fn run_recorder(mut recorder: Recorder, player_controller: Arc<PlayerController>) {
     std::thread::spawn(move || loop {
         match recorder.consumer.try_pop() {
             Some(sample) => {
@@ -54,17 +64,29 @@ pub fn run_recorder(mut recorder: Recorder) {
                     .is_recording
                     .load(std::sync::atomic::Ordering::Relaxed)
                 {
+                    if recorder.position >= recorder.buffer_size {
+                        if let Some(audio_sample) = recorder.current_recording_clip.take() {
+                            recorder
+                                .mixer_controller
+                                .add_audio_sample(AudioSample::new(audio_sample, 44_100));
+                            recorder.position = 0;
+                            player_controller.on_clip_add();
+                        }
+                    }
                     if let Some(clip) = recorder.current_recording_clip.as_mut() {
                         clip.push(sample);
                     } else {
                         recorder.current_recording_clip = Some(vec![sample]);
                     }
+                    recorder.position += 1;
                 } else {
                     if let Some(clip) = recorder.current_recording_clip.take() {
                         recorder
                             .mixer_controller
                             .add_audio_sample(AudioSample::new(clip, 44_100));
-                    };
+                        recorder.position = 0;
+                        player_controller.on_clip_add();
+                    }
                 }
             }
             None => (),

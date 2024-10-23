@@ -20,9 +20,9 @@ fn main() {
 
     let (output_stream, mixer_controller) = get_output_stream(consumer);
 
-    let zero_vector = AudioSample::zero_buffer(44_100, 120, 4, 4, 2);
+    // let zero_vector = AudioSample::zero_buffer(44_100, 120, 4, 4, 2);
 
-    mixer_controller.add_audio_sample(zero_vector);
+    // mixer_controller.add_audio_sample(zero_vector);
 
     // mixer_controller.add_audio_sample(drums);
 
@@ -38,15 +38,11 @@ fn main() {
 
     run_player(player);
 
-    run_recorder(recorder);
+    run_recorder(recorder, player_controller.clone());
 
     player_controller.play();
 
     player_controller.record();
-
-    std::thread::sleep(std::time::Duration::from_secs(3));
-
-    player_controller.stop_record();
 
     loop {}
 }
