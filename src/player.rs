@@ -43,6 +43,7 @@ impl PlayerController {
         let _ = self.sender.send(PlayerMessage::Exit);
     }
     pub fn on_clip_add(&self) {
+        println!("In on clip add!");
         let _ = self.sender.send(PlayerMessage::IncrementTotalClips);
     }
     pub fn on_clip_remove(&self) {
@@ -92,6 +93,8 @@ impl Player {
         self.recorder_controller.stop_recording();
     }
     pub fn increment_total_clips(&mut self) {
+        println!("Total clips: {}", self.total_clips);
+        println!("Maximum clips: {}", self.maximum_clips);
         if self.total_clips >= self.maximum_clips {
             self.stop_record();
             return;
@@ -116,7 +119,7 @@ pub fn player(
 
 pub fn run_player(mut player: Player) {
     std::thread::spawn(move || loop {
-        match player.controller_receiver.try_recv() {
+        match player.controller_receiver.recv() {
             Ok(message) => match message {
                 PlayerMessage::Play => player.play(),
                 PlayerMessage::Pause => player.pause(),

@@ -22,11 +22,11 @@ impl RecorderController {
     }
     pub fn start_recording(&self) {
         self.is_recording
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
     pub fn stop_recording(&self) {
         self.is_recording
-            .store(false, std::sync::atomic::Ordering::Relaxed);
+            .store(false, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -62,7 +62,7 @@ pub fn run_recorder(mut recorder: Recorder, player_controller: Arc<PlayerControl
                 if recorder
                     .recorder_controller
                     .is_recording
-                    .load(std::sync::atomic::Ordering::Relaxed)
+                    .load(std::sync::atomic::Ordering::SeqCst)
                 {
                     if recorder.position >= recorder.buffer_size {
                         if let Some(audio_sample) = recorder.current_recording_clip.take() {

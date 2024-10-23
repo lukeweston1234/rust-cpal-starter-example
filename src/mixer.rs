@@ -58,19 +58,19 @@ impl MixerController {
             }
         }
         self.has_prepared_audio
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
     pub fn get_prepared_audio(&self) -> Vec<f32> {
         self.prepared_audio.lock().unwrap().to_vec()
     }
     pub fn set_prepared_false(&self) {
         self.has_prepared_audio
-            .store(false, std::sync::atomic::Ordering::Relaxed);
+            .store(false, std::sync::atomic::Ordering::SeqCst);
     }
     pub fn set_mixer_state(&self, mixer_state: MixerState) {
         println!("{:?}", mixer_state);
         self.mixer_state
-            .store(mixer_state as u8, std::sync::atomic::Ordering::Relaxed);
+            .store(mixer_state as u8, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -94,7 +94,7 @@ impl Iterator for Mixer {
         let mixer_state_num = self
             .controller
             .mixer_state
-            .load(std::sync::atomic::Ordering::Relaxed);
+            .load(std::sync::atomic::Ordering::SeqCst);
 
         let mixer_state = match mixer_state_num {
             0 => MixerState::PlayingOneShot,
@@ -116,7 +116,7 @@ impl Iterator for Mixer {
         if self
             .controller
             .has_prepared_audio
-            .load(std::sync::atomic::Ordering::Relaxed)
+            .load(std::sync::atomic::Ordering::SeqCst)
         {
             self.audio_buffer = self.controller.get_prepared_audio().to_vec(); // TODO: How bad is this approach?
             self.controller.set_prepared_false();
