@@ -38,24 +38,48 @@ impl MixerController {
     }
     pub fn sum_audio_store(&self) {
         println!("Summing audio!");
-        let max_length = self
-            .audio_store
-            .lock()
-            .unwrap()
+        let audio_store = self.audio_store.lock().unwrap();
+
+        // Determine the number of channels; assuming all samples have the same channel count
+        let channels = if !audio_store.is_empty() {
+            audio_store[0].channels as usize
+        } else {
+            1
+        };
+
+        // Find the maximum number of frames (total samples divided by channels)
+        let max_frames = audio_store
             .iter()
-            .map(|x| x.get_samples().len())
+            .map(|x| x.samples.len() / channels)
             .max()
             .unwrap_or(0);
+
         let mut prepared_audio = self.prepared_audio.lock().unwrap();
-        prepared_audio.resize(max_length, 0.0);
-        let audio_store = self.audio_store.lock().unwrap();
-        for i in 0..max_length - 1 {
-            for sample in audio_store.iter() {
-                match sample.get_samples().get(i) {
-                    Some(value) => prepared_audio[i] += value,
-                    None => (),
+        prepared_audio.resize(max_frames * channels, 0.0);
+
+        // Sum the samples per frame per channel
+        for frame_index in 0..max_frames {
+            for channel in 0..channels {
+                let sample_index = frame_index * channels + channel;
+                let mut sample_sum = 0.0;
+                for audio_sample in audio_store.iter() {
+                    if audio_sample.channels as usize != channels {
+                        // Handle mismatched channels if needed
+                        // For now, skip or handle accordingly
+                        continue;
+                    }
+                    let sample = audio_sample
+                        .samples
+                        .get(sample_index)
+                        .copied()
+                        .unwrap_or(0.0);
+                    sample_sum += sample;
                 }
+                prepared_audio[sample_index] = sample_sum;
             }
+        }
+        if prepared_audio.len() % channels != 0 {
+            prepared_audio.push(0.0);
         }
         self.has_prepared_audio
             .store(true, std::sync::atomic::Ordering::SeqCst);
@@ -122,7 +146,7 @@ impl Iterator for Mixer {
             self.controller.set_prepared_false();
         }
 
-        if self.position > self.audio_buffer.len() {
+        if self.position >= self.audio_buffer.len() {
             if mixer_state == MixerState::PlayingLooping {
                 self.position = 0;
             } else {

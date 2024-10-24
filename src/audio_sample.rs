@@ -1,13 +1,15 @@
 #[allow(dead_code)]
 pub struct AudioSample {
-    samples: Vec<f32>,
-    sample_rate: u32,
+    pub samples: Vec<f32>,
+    pub channels: u16,
+    pub sample_rate: u32,
 }
 impl AudioSample {
-    pub fn new(samples: Vec<f32>, sample_rate: u32) -> Self {
+    pub fn new(samples: Vec<f32>, sample_rate: u32, channels: u16) -> Self {
         Self {
             samples,
             sample_rate,
+            channels,
         }
     }
     pub fn zero_buffer(
@@ -15,13 +17,14 @@ impl AudioSample {
         bpm: u32,
         beats_per_measure: u32,
         bars: u32,
-        channel_count: u32,
+        channel_count: u16,
     ) -> AudioSample {
-        let sample_time = sample_rate * 60 / bpm * beats_per_measure * bars * channel_count;
+        let sample_time = sample_rate * 60 / bpm * beats_per_measure * bars * channel_count as u32;
         println!("{}", sample_time);
         Self {
             samples: vec![0.0; sample_time as usize],
             sample_rate: sample_rate,
+            channels: channel_count,
         }
     }
     pub fn get(&self, position: usize) -> Option<&f32> {
@@ -50,5 +53,6 @@ pub fn load_wav(file_path: &str) -> Result<AudioSample, hound::Error> {
     Ok(AudioSample {
         samples,
         sample_rate: spec.sample_rate,
+        channels: spec.channels,
     })
 }

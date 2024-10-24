@@ -26,35 +26,39 @@ pub fn get_input_stream() -> (cpal::Stream, RingBufConsumer<f32>, RingBufConsume
 
     println!("{}", sample_rate.0);
 
+    let channels = input_config.channels();
+
     println!("{}", input_config.channels());
 
     let latency_frames = (150.0 / 1_000.0) * sample_rate.0 as f32;
-    let latency_samples = latency_frames as usize * 2 as usize;
+    let latency_samples = latency_frames as usize * input_config.channels() as usize;
 
     println!("{}", latency_samples);
 
     let feedback_ring = HeapRb::<f32>::new(latency_samples * 2);
     let (mut feedback_producer, feedback_consumer) = feedback_ring.split();
-    for _ in 0..1024 {
+    for _ in 0..latency_samples {
         feedback_producer.try_push(0.0).unwrap();
     }
     let ring_recording = HeapRb::<f32>::new(latency_samples * 2);
     let (mut producer_recording, consumer_recording) = ring_recording.split();
-    for _ in 0..1024 {
+    for _ in 0..latency_samples {
         producer_recording.try_push(0.0).unwrap();
     }
     let input_data_fn = move |data: &[f32], _: &cpal::InputCallbackInfo| {
         let mut output_fell_behind = false;
-        for &sample in data {
-            if feedback_producer.try_push(sample).is_err() {
-                output_fell_behind = true;
+        data.chunks(channels as usize).for_each(|frame| {
+            for &sample in frame {
+                if feedback_producer.try_push(sample).is_err() {
+                    output_fell_behind = true;
+                }
+                if producer_recording.try_push(sample).is_err() {
+                    output_fell_behind = true;
+                }
             }
-            if producer_recording.try_push(sample).is_err() {
-                output_fell_behind = true;
-            }
-        }
+        });
         if output_fell_behind {
-            eprintln!("output stream fell behind: try increasing latency");
+            eprintln!("Output stream fell behind: try increasing latency");
         }
     };
     let input_stream = input_device
@@ -83,15 +87,13 @@ pub fn get_output_stream(
     let (mixer_controller, mut mixer) = mixer();
 
     let process = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        data.chunks_mut(channels.into()).for_each(|frame| {
-            for sample in frame.iter_mut() {
-                let consumer_sample = match consumer.try_pop() {
-                    Some(s) => s,
-                    None => 0.0,
-                };
-                *sample = mixer.next().unwrap_or(0f32) + consumer_sample;
-            }
-        })
+        data.chunks_mut(channels as usize).for_each(|frame| {
+            frame.iter_mut().for_each(|sample| {
+                let mixer_sample = mixer.next().unwrap_or(0.0);
+                let consumer_sample = consumer.try_pop().unwrap_or(0.0);
+                *sample = mixer_sample + consumer_sample;
+            });
+        });
     };
 
     let output_stream = output_device

@@ -65,9 +65,11 @@ pub fn run_recorder(mut recorder: Recorder, player_controller: Arc<PlayerControl
                 {
                     if recorder.position >= recorder.buffer_size {
                         if let Some(audio_sample) = recorder.current_recording_clip.take() {
-                            recorder
-                                .mixer_controller
-                                .add_audio_sample(AudioSample::new(audio_sample, 44_100));
+                            recorder.mixer_controller.add_audio_sample(AudioSample::new(
+                                audio_sample,
+                                44_100,
+                                2,
+                            ));
                             recorder.position = 0;
                             player_controller.on_clip_add();
                         }
@@ -82,7 +84,7 @@ pub fn run_recorder(mut recorder: Recorder, player_controller: Arc<PlayerControl
                     if let Some(clip) = recorder.current_recording_clip.take() {
                         recorder
                             .mixer_controller
-                            .add_audio_sample(AudioSample::new(clip, 44_100));
+                            .add_audio_sample(AudioSample::new(clip, 44_100, 2));
                         recorder.position = 0;
                         player_controller.on_clip_add();
                     }
