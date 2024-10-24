@@ -1,15 +1,14 @@
 use crate::audio_sample::AudioSample;
-use crate::mixer::{Mixer, MixerController};
+use crate::mixer::MixerController;
 use crate::player::PlayerController;
 use crate::stream::RingBufConsumer;
 use ringbuf::traits::Consumer;
 use std::sync::atomic::AtomicBool;
-use std::sync::mpsc::{self, channel, Receiver};
 use std::sync::Arc;
 
-pub enum RecorderMessage {
-    ClipAdded,
-}
+// pub enum RecorderMessage {
+//     ClipAdded,
+// }
 
 pub struct RecorderController {
     is_recording: AtomicBool,

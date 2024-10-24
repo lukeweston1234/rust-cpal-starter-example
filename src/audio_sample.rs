@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub struct AudioSample {
     samples: Vec<f32>,
     sample_rate: u32,

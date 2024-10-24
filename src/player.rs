@@ -1,7 +1,7 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 
-use crate::mixer::{Mixer, MixerController, MixerState};
+use crate::mixer::{MixerController, MixerState};
 use crate::recorder::RecorderController;
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use audio_sample::{load_wav, AudioSample};
+// use audio_sample::{load_wav, AudioSample};
 use cpal::{self, traits::StreamTrait};
 use player::{player, run_player};
 use recorder::{recorder, run_recorder};
@@ -11,8 +11,8 @@ mod recorder;
 mod stream;
 
 fn main() {
-    let drums = load_wav("assets/drums_32.wav").expect("Could not load drums!");
-    let synth = load_wav("assets/synth_32.wav").expect("Could not load synth!");
+    // let drums = load_wav("assets/drums_32.wav").expect("Could not load drums!");
+    // let synth = load_wav("assets/synth_32.wav").expect("Could not load synth!");
 
     println!("Samples loaded!");
 
